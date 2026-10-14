@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Mensaje de las Luces - Stranger Things</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: #e9ddc0;
+    background-image: radial-gradient(#c9b98f 1.5px, transparent 1.5px);
+    background-size: 22px 22px;
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 15px 60px;
+    box-sizing: border-box;
+  }
+  h1 {
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    color: #d61f1f;
+    text-shadow: 0 0 10px #ff8a3d, 2px 2px 0 #1a1008;
+    letter-spacing: 3px;
+    font-size: 2em;
+    text-align: center;
+  }
+  p.instructions {
+    color: #3a2d1a;
+    text-align: center;
+    max-width: 500px;
+  }
+  .row {
+    margin: 20px 0;
+    width: 100%;
+    max-width: 620px;
+  }
+  .letters {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+  }
+  .letter-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 11%;
+  }
+  .bulb {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #8a8a8a;
+    opacity: 0.6;
+    box-shadow: inset -2px -2px 5px rgba(0,0,0,0.4);
+    transition: all 0.25s ease;
+  }
+  .bulb.on {
+    opacity: 1;
+    background: currentColor;
+    box-shadow: 0 0 10px 3px currentColor, 0 0 28px 12px currentColor;
+  }
+  .letter {
+    font-weight: bold;
+    font-size: 1.4em;
+    color: #1a1008;
+    margin-top: 6px;
+  }
+  .controls {
+    margin-top: 30px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  button {
+    background: #d61f1f;
+    color: #fff;
+    border: none;
+    padding: 12px 20px;
+    font-family: 'Courier Prime', monospace;
+    font-weight: bold;
+    letter-spacing: 1px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95em;
+  }
+  button:disabled { background: #aaa; cursor: not-allowed; }
+  button:hover:not(:disabled) { background: #a81414; }
+  .answer-box {
+    margin-top: 25px;
+    text-align: center;
+  }
+  input[type="text"] {
+    padding: 10px;
+    font-size: 1em;
+    border-radius: 6px;
+    border: 2px solid #1a1008;
+    background: #fff;
+    color: #1a1008;
+    text-transform: uppercase;
+    width: 260px;
+    max-width: 80vw;
+  }
+  .message {
+    margin-top: 15px;
+    font-size: 1.1em;
+    font-weight: bold;
+    min-height: 1.5em;
+    text-align: center;
+    color: #1a1008;
+  }
+  .message.win { color: #1f8a2e; }
+  .message.lose { color: #d61f1f; }
+</style>
+</head>
+<body>
+
+<h1>¿Qué está diciendo Will?</h1>
+<p class="instructions">Presiona el botón y observa qué letras se iluminan. Cuando termine la secuencia, escribe el mensaje completo.</p>
+
+<div id="board"></div>
+
+<div class="controls">
+  <button id="startBtn">Iniciar mensaje</button>
+  <button id="replayBtn" disabled>Repetir secuencia</button>
+  <button id="hintBtn" disabled>Pista</button>
+</div>
+
+<div class="answer-box">
+  <input type="text" id="guessInput" placeholder="Escribe el mensaje aquí" disabled>
+  <br><br>
+  <button id="guessBtn" disabled>Adivinar</button>
+</div>
+
+<div class="message" id="message"></div>
+
+<script>
+  const ROWS = [
+    "ABCDEFGH",
+    "IJKLMNOPQ",
+    "RSTUVWXYZ"
+  ];
+
+  const COLORS = ["#e0d8c3", "#3fa9f5", "#e23b3b", "#5bbf5b", "#f2d13c"];
+
+  const MESSAGES = [
+    "FRIENDS DONT LIE",
+    "WELCOME TO HAWKINS"
+  ];
+
+  let currentMessage = "";
+  let bulbMap = {};
+  let sequenceRunning = false;
+  let hintUsed = false;
+
+  const board = document.getElementById("board");
+  const messageEl = document.getElementById("message");
+  const startBtn = document.getElementById("startBtn");
+  const replayBtn = document.getElementById("replayBtn");
+  const hintBtn = document.getElementById("hintBtn");
+  const guessInput = document.getElementById("guessInput");
+  const guessBtn = document.getElementById("guessBtn");
+
+  function buildBoard() {
+    board.innerHTML = "";
+    let colorIndex = 0;
+    ROWS.forEach(row => {
+      const rowDiv = document.createElement("div");
+      rowDiv.className = "row";
+
+      const lettersDiv = document.createElement("div");
+      lettersDiv.className = "letters";
+
+      [...row].forEach(ch => {
+        const block = document.createElement("div");
+        block.className = "letter-block";
+
+        const bulb = document.createElement("div");
+        bulb.className = "bulb";
+        const color = COLORS[colorIndex % COLORS.length];
+        bulb.style.color = color;
+        bulb.id = "bulb-" + ch;
+        colorIndex++;
+
+        const letter = document.createElement("div");
+        letter.className = "letter";
+        letter.textContent = ch;
+
+        block.appendChild(bulb);
+        block.appendChild(letter);
+        lettersDiv.appendChild(block);
+        bulbMap[ch] = bulb;
+      });
+
+      rowDiv.appendChild(lettersDiv);
+      board.appendChild(rowDiv);
+    });
+  }
+
+  function pickMessage() {
+    const idx = Math.floor(Math.random() * MESSAGES.length);
+    currentMessage = MESSAGES[idx];
+    hintUsed = false;
+  }
+
+  function clearBulbs() {
+    Object.values(bulbMap).forEach(b => b.classList.remove("on"));
+  }
+
+  async function playSequence() {
+    sequenceRunning = true;
+    startBtn.disabled = true;
+    replayBtn.disabled = true;
+    hintBtn.disabled = true;
+    guessBtn.disabled = true;
+    guessInput.disabled = true;
+    messageEl.textContent = "";
+    messageEl.className = "message";
+    clearBulbs();
+
+    for (const ch of currentMessage) {
+      if (ch === " ") {
+        await sleep(500);
+        continue;
+      }
+      const bulb = bulbMap[ch];
+      bulb.classList.add("on");
+      await sleep(800);
+      bulb.classList.remove("on");
+      await sleep(300);
+    }
+
+    sequenceRunning = false;
+    replayBtn.disabled = false;
+    hintBtn.disabled = hintUsed;
+    guessBtn.disabled = false;
+    guessInput.disabled = false;
+  }
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  startBtn.addEventListener("click", () => {
+    pickMessage();
+    playSequence();
+  });
+
+  replayBtn.addEventListener("click", () => {
+    if (!sequenceRunning) playSequence();
+  });
+
+  hintBtn.addEventListener("click", () => {
+    messageEl.textContent = 'Pista: la primera letra es "' + currentMessage[0] + '"';
+    messageEl.className = "message";
+    hintUsed = true;
+    hintBtn.disabled = true;
+  });
+
+  guessBtn.addEventListener("click", () => {
+    const guess = guessInput.value.trim().toUpperCase().replace(/[^A-Z ]/g, "");
+    const target = currentMessage.replace(/[^A-Z ]/g, "");
+    if (guess === target) {
+      messageEl.textContent = '¡Correcto! El mensaje era: "' + currentMessage + '"';
+      messageEl.className = "message win";
+    } else {
+      messageEl.textContent = "Casi... inténtalo de nuevo o pide una pista.";
+      messageEl.className = "message lose";
+    }
+  });
+
+  buildBoard();
+</script>
+</body>
+</html>
